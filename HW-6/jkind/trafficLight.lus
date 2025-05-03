@@ -3,7 +3,11 @@ type pedestrianLight = enum {WAIT, WALK, FLASH};
 type trafficLight =  enum {RED, AMBER, GREEN};
 type buttonState = enum {RESET, SET};
 
-node main() returns (
+-- main node needs an input here, this could be the choose_... variables. We would let jkind decide on what the initial
+-- value is by first setting it as an input. Then we would create and assert statement like 
+-- assert (choose_walk_to_flash -> not pre(choose_walk_to_flash))
+
+node main(choose_walk_to_flash: bool) returns (
     pedestrian_light: pedestrianLight;
     traffic_light: trafficLight;
     button_state: buttonState
@@ -26,7 +30,11 @@ let
     traffic_light = RED -> new_traffic_light;
     button_state = RESET -> new_button_state;
 
-    choose_walk_to_flash = true -> not pre(choose_walk_to_flash);
+    -- choose_walk_to_flash = true -> not pre(choose_walk_to_flash);
+
+    assert(choose_walk_to_flash -> not pre(choose_walk_to_flash))
+    
+
     choose_flash_to_wait = true -> not pre(choose_flash_to_wait);
     choose_green_to_amber = true -> not pre(choose_green_to_amber);
     choose_amber_to_red = true -> not pre(choose_amber_to_red);
@@ -83,6 +91,6 @@ let
         RESET;
 
     -- Safety property that walk is not possible if traffic_light = green
-    pedestrian_safety = not (pedestrian_light = WALK and traffic_light = GREEN);=
+    pedestrian_safety = not (pedestrian_light = WALK and traffic_light = GREEN);
     --%PROPERTY pedestrian_safety;
 tel
