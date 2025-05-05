@@ -1,13 +1,17 @@
 node main() returns(clock: int);
 var
+    new_clock: int;
+
     good_prop: bool;
     bad_prop: bool;
 let
-    clock = 0 -> pre clock + 1;
+    clock = 0 -> new_clock;
+
+    new_clock = pre(clock) + 1;
 
     good_prop = clock >= 0;
-    bad_prop = clock <> 10;
-
     --%PROPERTY good_prop;
+
+    bad_prop = clock <> 10;
     --%PROPERTY bad_prop;
 tel;

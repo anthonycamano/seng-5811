@@ -3,94 +3,77 @@ type pedestrianLight = enum {WAIT, WALK, FLASH};
 type trafficLight =  enum {RED, AMBER, GREEN};
 type buttonState = enum {RESET, SET};
 
--- main node needs an input here, this could be the choose_... variables. We would let jkind decide on what the initial
--- value is by first setting it as an input. Then we would create and assert statement like 
--- assert (choose_walk_to_flash -> not pre(choose_walk_to_flash))
-
-node main(choose_walk_to_flash: bool) returns (
+-- multiple inputs always initialize to true by jkind...
+node main(
+    choose_walk_or_flash,
+    choose_flash_or_wait,
+    choose_green_or_amber,
+    choose_amber_or_red,
+    choose_reset_or_set: bool
+) returns (
     pedestrian_light: pedestrianLight;
     traffic_light: trafficLight;
     button_state: buttonState
 );
 var
-    choose_walk_to_flash: bool;
-    choose_flash_to_wait: bool;
-    choose_green_to_amber: bool;
-    choose_amber_to_red: bool;
-    choose_reset_to_set: bool;
-
     new_pedestrian_light: pedestrianLight;
     new_traffic_light: trafficLight;
     new_button_state: buttonState;
 
-    pedestrian_safety: bool;
+    safety_prop,
+    valid_prop,
+    invalid_prop: bool;
 let
-    -- Initial values
+    -- Initial values and what gets returned
     pedestrian_light = WAIT -> new_pedestrian_light;
     traffic_light = RED -> new_traffic_light;
     button_state = RESET -> new_button_state;
 
-    -- choose_walk_to_flash = true -> not pre(choose_walk_to_flash);
-
-    assert(choose_walk_to_flash -> not pre(choose_walk_to_flash))
-    
-
-    choose_flash_to_wait = true -> not pre(choose_flash_to_wait);
-    choose_green_to_amber = true -> not pre(choose_green_to_amber);
-    choose_amber_to_red = true -> not pre(choose_amber_to_red);
-    choose_reset_to_set = true -> not pre(choose_reset_to_set);
+    -- Constraints on the inputs
+    assert(choose_walk_or_flash -> choose_walk_or_flash <> pre choose_walk_or_flash);
+    assert(choose_flash_or_wait -> choose_flash_or_wait <> pre choose_flash_or_wait);
+    assert(choose_green_or_amber -> choose_green_or_amber <> pre choose_green_or_amber);
+    assert(choose_amber_or_red -> choose_amber_or_red <> pre choose_amber_or_red);
+    assert(choose_reset_or_set -> choose_reset_or_set <> pre choose_reset_or_set);
 
     -- Transition logic for pedestrian_light
-    new_pedestrian_light =
-    if pre(traffic_light = RED) and pre(button_state = SET) then
-        WALK
-    else if pre(pedestrian_light) = WAIT then
-        WAIT
-    else if pre(pedestrian_light) = WALK then
-        if choose_walk_to_flash then
-            FLASH
-        else
-            WALK
-    else
-        if choose_flash_to_wait then
-            WAIT
-        else
-            FLASH;
+        new_pedestrian_light = if pre pedestrian_light = WAIT and pre traffic_light = RED and pre button_state = SET then WALK
+        else if pre pedestrian_light = WAIT then WAIT
+        else if pre pedestrian_light = WALK then
+            if choose_walk_or_flash then WALK
+            else FLASH
+        else if pre pedestrian_light = FLASH then
+            if choose_flash_or_wait then FLASH
+            else WAIT
+        else pre pedestrian_light;
 
     -- Transition logic for traffic_light
-    new_traffic_light = 
-    if pre(traffic_light) = RED and pre(pedestrian_light) = WAIT and pre(button_state) = RESET then
-        GREEN
-    else if pre(traffic_light) = RED then
-        RED
-    else if pre(traffic_light) = GREEN and pre(button_state) = SET then
-        if choose_green_to_amber then
-            AMBER
-        else
-            GREEN
-    else if pre(traffic_light) = GREEN then
-        GREEN
-    else
-        if choose_amber_to_red then
-            RED
-        else
-            AMBER; 
-    
-    -- Transition logic for button_state
-    new_button_state =
-    if pre(button_state) = SET and pre(pedestrian_light) = WALK then
-        RESET
-    else if pre(button_state) = SET then
-        SET
-    else if pre(button_state) = RESET and pre(traffic_light) = GREEN then
-        if choose_reset_to_set then
-            SET
-        else
-            RESET
-    else
-        RESET;
+    new_traffic_light = if pre traffic_light = RED and pre pedestrian_light = WAIT and pre button_state = RESET then GREEN
+        else if pre traffic_light = RED then RED
+        else if pre traffic_light = GREEN and pre button_state = SET then
+            if choose_green_or_amber then GREEN
+            else AMBER
+        else if pre traffic_light = GREEN then GREEN
+        else if pre traffic_light = AMBER then
+            if choose_amber_or_red then AMBER
+            else RED
+        else pre traffic_light;
 
-    -- Safety property that walk is not possible if traffic_light = green
-    pedestrian_safety = not (pedestrian_light = WALK and traffic_light = GREEN);
-    --%PROPERTY pedestrian_safety;
-tel
+    -- Transition logic for button_state
+    new_button_state = if pre button_state = SET and pre pedestrian_light = WALK then RESET
+        else if pre button_state = SET then SET
+        else if pre button_state = RESET and pre traffic_light = GREEN then
+            if choose_reset_or_set then RESET
+            else SET
+        else if pre button_state = RESET then RESET
+        else pre button_state;
+
+    safety_prop = not (traffic_light = GREEN and pedestrian_light = WALK);
+    --%PROPERTY safety_prop;
+
+    valid_prop = not (traffic_light = AMBER and pedestrian_light = WAIT and button_state = RESET);
+    --%PROPERTY valid_prop;
+
+    invalid_prop = pedestrian_light <> FLASH;
+    --%PROPERTY invalid_prop;
+tel;
